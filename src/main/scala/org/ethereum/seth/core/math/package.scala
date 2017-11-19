@@ -1,5 +1,8 @@
 package org.ethereum.seth.core
 
+import org.ethereum.seth.core.types._
+import org.ethereum.seth.core.hash._
+
 import scala.math._
 
 package object math {
@@ -9,6 +12,7 @@ package object math {
   val Finney = BigInt(10).pow(15)
   val Ether = BigInt(10).pow(18)
   val P256_MAX = BigInt(2).pow(256)
+
 
   val J_Wordbytes = 4 // Bytes in word.
   val J_datasetinit = BigInt(2).pow(30) // Bytes in dataset at genesis.
@@ -22,7 +26,12 @@ package object math {
   val J_cacherounds = 3 // Number of rounds in cache production.
   val J_accesses = 64 //Number of accesses in hashimoto loop.
 
-  def max(left: BigInt, right: BigInt): BigInt = if (left > right) left else right
+  def max(left: P256, right: P256): P256 =  if (left > right) left else right
 
+ // def collapse[K,V](k:K, v:V) = (hash.sha3(k), rlp.encode(v))
+
+  def ecdsaPubKey(key: B32): B64 = ???
+  def ecdsaSign(e: B32, key: B32): (B1, B32, B32) = ???
+  def ecdsaRecover(e: B32, v: B1, r: B32, s: B32): B64 = ???
 
 }

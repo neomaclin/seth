@@ -49,34 +49,34 @@ class RLPSpec extends FlatSpec {
       )
     assert(encode(seq).hexString == "[0xc7,0xc0,0xc1,0xc0,0xc3,0xc0,0xc1,0xc0]")
   }
+//
+//  "[0x80]" should "be decoded to empty byte array " in {
+//
+//    val (Some(ByteArrayRLPItem(array)),_) = decode(Array(0x80).map(_.toByte))
+//    assert(array.isEmpty)
+//  }
 
-  "[0x80]" should "be decoded to empty byte array " in {
-
-    val (Some(ByteArrayRLPItem(array)),_) = decode(Array(0x80).map(_.toByte))
-    assert(array.isEmpty)
-  }
-
-  "[0xc0]" should "be a empty seq of RLPItems" in {
-
-    val (Some(RLPItemSeq(s)),_) = decode(Array(0xc0).map(_.toByte))
-    assert(s.isEmpty)
-  }
-
-  " [0x83,'d','o','g'] " should "be 'dog' " in {
-
-    val (Some(ByteArrayRLPItem(array)),_) = decode(Array(0x83,'d','o','g').map(_.toByte))
-    assert(array.map(_.toChar).mkString == "dog")
-  }
-
-  " [0xc8,0x83,'d','o','g',0x83,'c','a','t'] " should "be ['dog','cat'] " in {
-
-    val (Some(RLPItemSeq(seq)),_) = decode(Array(0xc8,0x83,'d','o','g',0x83,'c','a','t').map(_.toByte))
-
-    println(seq.map{
-      case ByteArrayRLPItem(seq) => seq.map(_.toChar).mkString
-      case _ => "Error"
-    }.mkString("[",",","]"))
-   }
+//  "[0xc0]" should "be a empty seq of RLPItems" in {
+//
+//    val (Some(RLPItemSeq(s)),_) = decode(Array(0xc0).map(_.toByte))
+//    assert(s.isEmpty)
+//  }
+//
+//  " [0x83,'d','o','g'] " should "be 'dog' " in {
+//
+//    val (Some(ByteArrayRLPItem(array)),_) = decode(Array(0x83,'d','o','g').map(_.toByte))
+//    assert(array.map(_.toChar).mkString == "dog")
+//  }
+//
+//  " [0xc8,0x83,'d','o','g',0x83,'c','a','t'] " should "be ['dog','cat'] " in {
+//
+//    val (Some(RLPItemSeq(seq)),_) = decode(Array(0xc8,0x83,'d','o','g',0x83,'c','a','t').map(_.toByte))
+//
+//    println(seq.map{
+//      case ByteArrayRLPItem(seq) => seq.map(_.toChar).mkString
+//      case _ => "Error"
+//    }.mkString("[",",","]"))
+//   }
 
 
 }

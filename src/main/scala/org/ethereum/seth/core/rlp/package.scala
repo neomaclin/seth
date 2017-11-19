@@ -1,159 +1,188 @@
 package org.ethereum.seth.core
 
-import cats.Eq
+import cats._
 
 package object rlp {
 
   import scala.languageFeature.implicitConversions
 
-  val RLPTzero = Seq.empty[RLPItem]
+  sealed trait DecodeError
 
-  val RLPBzero = Array.empty[Byte]
+  case object InvalidRLPLength extends DecodeError
 
-  def encode[T](l: T)(implicit e: RLPEncodeable[T]): Array[Byte] = e.encode(l)
+  case object RLPFeedNotReady extends DecodeError
 
-  def decode(input: Array[Byte]): (Option[RLPItem], Array[Byte]) = {
-
-    input.toList match {
-      case Nil => (None, Array.empty[Byte])
-      case head :: Nil if head < B_OFFSET_SHORT.toByte && head > 0 =>
-        (Some(ByteArrayRLPItem(Array(head))), Array.empty[Byte])
-      case head :: Nil if head == B_OFFSET_SHORT.toByte =>
-        (Some[RLPItem](RLPBzero), Array.empty[Byte])
-      case head :: seq if head > B_OFFSET_SHORT.toByte && head < B_OFFSET_LONG.toByte =>
-        val expectedSize: Int = head - B_OFFSET_SHORT.toByte
-        (Some[RLPItem](seq.take(expectedSize).toArray), seq.drop(expectedSize).toArray)
-      case head :: Nil if head == L_OFFSET_SHORT.toByte =>
-        (Some[RLPItem](RLPTzero), Array.empty[Byte])
-      case head :: seq if head > L_OFFSET_SHORT.toByte && head < L_OFFSET_LONG.toByte =>
-        var subItems = Seq.empty[RLPItem]
-        var remains = seq.toArray
-        var result:Option[RLPItem] = None
-        do {
-          val results = decode(remains)
-          result = results._1
-          remains = results._2
-          subItems = subItems ++ result
-        } while (remains.length > 0)
-        (Some[RLPItem](subItems), Array.empty[Byte])
-      case seq => ???
-        //TODO: decode the byteArray generated for Int/Long/BigInt, and the Recursive RLPStructure
-    }
-  }
-
-  /**
-    * Allow for content up to size of 2^64 bytes *
-    **/
-  private val MAX_ITEM_LENGTH = BigInt(256).pow(8)
-
-  /**
-    * Reason for threshold according to Vitalik Buterin:
-    * - 56 bytes maximizes the benefit of both options
-    * - if we went with 60 then we would have only had 4 slots for long strings
-    * so RLP would not have been able to store objects above 4gb
-    * - if we went with 48 then RLP would be fine for 2^128 space, but that's way too much
-    * - so 56 and 2^64 space seems like the right place to put the cutoff
-    * - also, that's where Bitcoin's variant does the cutoff
-    */
-  private val SIZE_THRESHOLD = 56
-
-  /** RLP encoding rules are defined as follows: */
-
-  /*
-   * For a single byte whose value is in the [0x00, 0x7f] range, that byte is
-   * its own RLP encoding.
-   * Refer to Yellow Paper . Appendix B for details
-   */
-
-  private val B_OFFSET_SHORT = 0x80
-
-  private val B_OFFSET_LONG = 0xb7
-
-  private val L_OFFSET_SHORT = 0xc0
-
-  private val L_OFFSET_LONG = 0xf7
-
-  private[rlp] object byteArray {
-    def encode(b: Array[Byte]): Array[Byte] = b match {
-      case Array(b) if b < B_OFFSET_SHORT && b > 0 => Array(b)
-      case array if array.length < SIZE_THRESHOLD => (B_OFFSET_SHORT + array.length).toByte +: array
-      case array => (B_OFFSET_LONG + BE(array.length).length).toByte +: (BE(array.length) ++ array)
-    }
-  }
-
-  private[rlp] object rlpItem {
-    def encode(s: Seq[RLPItem]): Array[Byte] = {
-      def recursively(s: Seq[RLPItem]) = s.flatMap(x => rlp.encode(x)(rlp.RLPItemRLPEncoding)).toArray[Byte]
-
-      s match {
-        case seq if seq.size < SIZE_THRESHOLD =>
-          (L_OFFSET_SHORT + recursively(seq).length).toByte +: recursively(seq)
-        case seq =>
-          (L_OFFSET_LONG + BE(recursively(seq).length).length).toByte +: (BE(recursively(seq).length) ++ recursively(seq))
-      }
-    }
-
-  }
-
-  trait RLPEncodeable[T] {
-    def encode(value: T): Array[Byte]
-  }
 
   trait RLPItem {
     def size: Int
   }
 
-  final case class ByteArrayRLPItem(b: Array[Byte]) extends RLPItem {
+  final case class B(b: Array[Byte]) extends RLPItem {
     def size: Int = b.length
   }
 
-  final case class RLPItemSeq(l: Seq[RLPItem]) extends RLPItem {
+  final case class L(l: Seq[RLPItem]) extends RLPItem {
     def size: Int = l.size
   }
 
-  implicit object BigIntRLPEncoding extends RLPEncodeable[BigInt] {
-    def encode(value: BigInt): Array[Byte] = rlp.byteArray.encode(value.toByteArray)
-  }
+  implicit def toRLPItem(str: String): RLPItem = StringRLPEncoding.from(str)
 
-  implicit object StringRLPEncoding extends RLPEncodeable[String] {
-    def encode(value: String): Array[Byte] = rlp.byteArray.encode(value.toArray.map(_.toByte))
-  }
+  implicit def toRLPItem(b: Array[Byte]): RLPItem = B(b)
 
-  implicit object LongRLPEncoding extends RLPEncodeable[Long] {
-    def encode(value: Long): Array[Byte] = rlp.byteArray.encode(BE(value))
-  }
+  implicit def toRLPItem(s: Seq[RLPItem]): RLPItem = L(s)
 
-  implicit object IntRLPEncoding extends RLPEncodeable[Int] {
-    def encode(value: Int): Array[Byte] = rlp.byteArray.encode(BE(value))
-  }
+  val RLPLzero = Seq.empty[RLPItem]
 
-  implicit object ByteRLPEncoding extends RLPEncodeable[Byte] {
-    def encode(value: Byte): Array[Byte] = rlp.byteArray.encode(Array(value))
-  }
+  val RLPBzero = Array.empty[Byte]
 
-  implicit object CharRLPEncoding extends RLPEncodeable[Char] {
-    def encode(value: Char): Array[Byte] = rlp.byteArray.encode(Array(value.toByte))
-  }
+  def encode[T](l: T)(implicit e: RLPEncodable[T]): Array[Byte] = e.encode(l)
 
-  implicit object ByteArrayRLPEncoding extends RLPEncodeable[Array[Byte]] {
-    def encode(value: Array[Byte]): Array[Byte] = rlp.byteArray.encode(value)
-  }
+  def decode[T](l: Array[Byte])(implicit e: RLPDecodable[T]): T = e.decode(l)
 
-  implicit object RLPItemRLPEncoding extends RLPEncodeable[RLPItem] {
-    def encode(value: RLPItem): Array[Byte] = value match {
-      case ByteArrayRLPItem(b) => rlp.byteArray.encode(b)
-      case RLPItemSeq(l) => rlp.rlpItem.encode(l)
+  //  def decodeStream(r: Streaming[Byte]): (Either[DecodeError, RLPItem], Streaming[Byte]) = {
+  //     r match {
+  //       case Empty() =>
+  //         (Left(InvalidRLPLength), Empty())
+  //       case Cons(head, trailing) =>{
+  //         head match {
+  //           case x if x < BOffsetShort && x > 0  =>
+  //           case x if =>
+  //           case x if =>
+  //           case x if =>
+  //           case x if =>
+  //         }
+  //       }
+  //       case Wait(waiting) => {
+  //         (Left(RLPFeedNotReady), r)
+  //       }
+  //     }
+  //  }
+  //e.decode(r)
+  //  }
+
+  //  private def scan(r: Streaming[Byte], error: List[DecodeError] = Nil): (List[DecodeError], Streaming[Byte]) = {
+  //    if (r.isEmpty) (error, r)
+  //    else ()
+  //  }
+
+  //  def validate(r: Streaming[Byte]): Boolean = {
+  //    val ( errors, trail ) = scan(r)
+  //    errors.isEmpty && trail.isEmpty
+  //  }
+
+  //  def decode(input: Array[Byte]): (Option[RLPItem], Array[Byte]) = {
+  //
+  //    input.toList match {
+  //      case Nil => (None, Array.empty[Byte])
+  //      case head :: Nil if head < B_OFFSET_SHORT.toByte && head > 0 =>
+  //        (Some(ByteArrayRLPItem(Array(head))), Array.empty[Byte])
+  //      case head :: Nil if head == B_OFFSET_SHORT.toByte =>
+  //        (Some[RLPItem](RLPBzero), Array.empty[Byte])
+  //      case head :: seq if head > B_OFFSET_SHORT.toByte && head < B_OFFSET_LONG.toByte =>
+  //        val expectedSize: Int = head - B_OFFSET_SHORT.toByte
+  //        (Some[RLPItem](seq.take(expectedSize).toArray), seq.drop(expectedSize).toArray)
+  //      case head :: Nil if head == L_OFFSET_SHORT.toByte =>
+  //        (Some[RLPItem](RLPTzero), Array.empty[Byte])
+  //      case head :: seq if head > L_OFFSET_SHORT.toByte && head < L_OFFSET_LONG.toByte =>
+  //        var subItems = Seq.empty[RLPItem]
+  //        var remains = seq.toArray
+  //        var result:Option[RLPItem] = None
+  //        do {
+  //          val results = decode(remains)
+  //          result = results._1
+  //          remains = results._2
+  //          subItems = subItems ++ result
+  //        } while (remains.length > 0)
+  //        (Some[RLPItem](subItems), Array.empty[Byte])
+  //      case seq => ???
+  //        //TODO: decode the byteArray generated for Int/Long/BigInt, and the Recursive RLPStructure
+  //    }
+  //  }
+
+  //  /**
+  //    * Allow for content up to size of 2 pow 64 bytes *
+  //    **/
+  //  private val MAX_ITEM_LENGTH = BigInt(256).pow(8)
+
+  private val SizeThreshold = 56
+
+  /** RLP encoding rules are defined as follows: */
+
+  private val BOffsetShort = 0x80
+
+  private val BOffsetLong = 0xb7
+
+  private val LOffsetShort = 0xc0
+
+  private val LOffsetLong = 0xf7
+
+  private[rlp] object byteArray {
+    val encode: Array[Byte] => Array[Byte] = {
+      case Array(b) if b < BOffsetShort && b > 0 => Array(b)
+      case array if array.length < SizeThreshold => (BOffsetShort + array.length).toByte +: array
+      case array => (BOffsetLong + BE(array.length).length).toByte +: (BE(array.length) ++ array)
     }
   }
 
-  implicit def toRLPItem(s: String): RLPItem = ByteArrayRLPItem(s.map(_.toByte).toArray)
+  private[rlp] object rlpItem {
 
-  implicit def toRLPItem(b: Array[Byte]): RLPItem = ByteArrayRLPItem(b)
+    private def s(x: Seq[RLPItem]) = x.foldLeft(Array.empty[Byte])(_ ++ rlp.encode[RLPItem](_)(RLPItemRLPEncoding))
 
-  implicit def toRLPItem(s: Seq[RLPItem]): RLPItem = RLPItemSeq(s)
+    val encode: Seq[RLPItem] => Array[Byte] = {
+      case x if x.size < SizeThreshold => (LOffsetShort + s(x).length).toByte +: s(x)
+      case x => (LOffsetLong + BE(s(x).length).length).toByte +: (BE(s(x).length) ++ s(x))
+    }
 
-  implicit object SeqRLPItemRLPEncoding extends RLPEncodeable[Seq[RLPItem]] {
-    def encode(value: Seq[RLPItem]): Array[Byte] = rlp.rlpItem.encode(value)
+  }
+
+
+  trait RLPEncodable[T] {
+    def from(value: T): RLPItem
+
+    final def encode(value: T): Array[Byte] = from(value) match {
+      case B(b) => rlp.byteArray.encode(b)
+      case L(l) => rlp.rlpItem.encode(l)
+    }
+  }
+
+  trait RLPDecodable[T] {
+    def decode(bytes: Array[Byte]): T
+  }
+
+  implicit object BigIntRLPEncoding extends RLPEncodable[BigInt] {
+    def from(value: BigInt): RLPItem = value.toByteArray
+  }
+
+  implicit object StringRLPEncoding extends RLPEncodable[String] {
+    def from(value: String): RLPItem = value.toArray.map(_.toByte)
+  }
+
+  implicit object LongRLPEncoding extends RLPEncodable[Long] {
+    def from(value: Long): RLPItem = BE(value)
+  }
+
+  implicit object IntRLPEncoding extends RLPEncodable[Int] {
+    def from(value: Int): RLPItem = BE(value)
+  }
+
+  implicit object ByteRLPEncoding extends RLPEncodable[Byte] {
+    def from(value: Byte): RLPItem = Array(value)
+  }
+
+  implicit object CharRLPEncoding extends RLPEncodable[Char] {
+    def from(value: Char): RLPItem = Array(value.toByte)
+  }
+
+  implicit object ByteArrayRLPEncoding extends RLPEncodable[Array[Byte]] {
+    def from(value: Array[Byte]): RLPItem = value
+  }
+
+  implicit object RLPItemRLPEncoding extends RLPEncodable[RLPItem] {
+    def from(value: RLPItem): RLPItem = value
+  }
+
+  implicit object SeqRLPItemRLPEncoding extends RLPEncodable[Seq[RLPItem]] {
+    def from(value: Seq[RLPItem]): RLPItem = value
   }
 
   private def BE(int: Int): Array[Byte] = BigInt(int).toByteArray
@@ -166,8 +195,8 @@ package object rlp {
 
   implicit object RLPItemEquality extends Eq[RLPItem] {
     override def eqv(x: RLPItem, y: RLPItem): Boolean = (x, y) match {
-      case (ByteArrayRLPItem(xb), ByteArrayRLPItem(yb)) => xb sameElements yb
-      case (RLPItemSeq(xs), RLPItemSeq(ys)) => xs sameElements ys
+      case (B(xb), B(yb)) => xb sameElements yb
+      case (L(xs), L(ys)) => xs sameElements ys
       case _ => false
     }
   }
