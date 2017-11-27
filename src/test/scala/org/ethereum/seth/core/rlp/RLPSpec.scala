@@ -3,6 +3,7 @@ package org.ethereum.seth.core.rlp
 
 import org.scalatest.FlatSpec
 
+import org.ethereum.seth.core._
 import scala.languageFeature.implicitConversions
 
 class RLPSpec extends FlatSpec {

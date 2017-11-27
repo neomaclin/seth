@@ -7,7 +7,7 @@ final public class HexPrefix {
 
     static public byte[] encode(final byte[] input, boolean t) {
         final boolean isEven = (input.length % 2) == 0;
-        final byte ft = t ? (byte) 1 : (byte) 0;
+        final byte ft = t ? (byte) 2 : (byte) 0;
         final byte[] result = new byte[input.length / 2 + 1];
         if (isEven) {
             result[0] = (byte)(ft << NIBBLE_SIZE);

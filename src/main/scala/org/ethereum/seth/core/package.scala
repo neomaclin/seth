@@ -7,6 +7,13 @@ import org.ethereum.seth.core.types.P256
 
 package object core {
 
+  implicit class ByteArrayOps(val b: Array[Byte]) extends AnyVal {
+    def hexString: String = b.map("0x%02x".format(_)).mkString("[", ",", "]")
+  }
+
+  //  def nextState(currentState: State, transactions: Streaming[Transactions]) = {
+//
+//  }
 //  def transitionOf(state: State, tx: Transaction): State = {
 //
 //

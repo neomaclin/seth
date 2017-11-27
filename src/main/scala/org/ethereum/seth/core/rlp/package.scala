@@ -146,6 +146,7 @@ package object rlp {
   }
 
   trait RLPDecodable[T] {
+
     def decode(bytes: Array[Byte]): T
   }
 
@@ -153,32 +154,56 @@ package object rlp {
     def from(value: BigInt): RLPItem = value.toByteArray
   }
 
+  implicit object BigIntRLPDecoding extends RLPDecodable[BigInt] {
+    def decode(value: Array[Byte]): BigInt = BigInt(value)
+  }
+
   implicit object StringRLPEncoding extends RLPEncodable[String] {
     def from(value: String): RLPItem = value.toArray.map(_.toByte)
+  }
+
+  implicit object StringRLPDecoding extends RLPDecodable[String] {
+    def decode(value: Array[Byte]): String = String.valueOf(value.map(_.toChar))
   }
 
   implicit object LongRLPEncoding extends RLPEncodable[Long] {
     def from(value: Long): RLPItem = BE(value)
   }
 
+  implicit object LongRLPDecoding extends RLPDecodable[Long] {
+    def decode(value: Array[Byte]): Long = BigInt(value).toLong
+  }
+
   implicit object IntRLPEncoding extends RLPEncodable[Int] {
     def from(value: Int): RLPItem = BE(value)
+  }
+
+  implicit object IntRLPDecoding extends RLPDecodable[Int] {
+    def decode(value: Array[Byte]): Int = BigInt(value).toInt
   }
 
   implicit object ByteRLPEncoding extends RLPEncodable[Byte] {
     def from(value: Byte): RLPItem = Array(value)
   }
 
+  implicit object ByteRLPDecoding extends RLPDecodable[Byte] {
+    def decode(value: Array[Byte]): Byte = value(0)
+  }
+
   implicit object CharRLPEncoding extends RLPEncodable[Char] {
     def from(value: Char): RLPItem = Array(value.toByte)
   }
 
-  implicit object ByteArrayRLPEncoding extends RLPEncodable[Array[Byte]] {
-    def from(value: Array[Byte]): RLPItem = value
+  implicit object CharRLPDecoding extends RLPDecodable[Char] {
+    def decode(value: Array[Byte]): Char = value(0).toChar
   }
 
   implicit object RLPItemRLPEncoding extends RLPEncodable[RLPItem] {
     def from(value: RLPItem): RLPItem = value
+  }
+
+  implicit object ByteArrayRLPEncoding extends RLPEncodable[Array[Byte]] {
+    def from(value: Array[Byte]): RLPItem = value
   }
 
   implicit object SeqRLPItemRLPEncoding extends RLPEncodable[Seq[RLPItem]] {
@@ -189,9 +214,6 @@ package object rlp {
 
   private def BE(int: Long): Array[Byte] = BigInt(int).toByteArray
 
-  implicit class ByteArrayOps(val b: Array[Byte]) extends AnyVal {
-    def hexString: String = b.map("0x%02x".format(_)).mkString("[", ",", "]")
-  }
 
   implicit object RLPItemEquality extends Eq[RLPItem] {
     override def eqv(x: RLPItem, y: RLPItem): Boolean = (x, y) match {
