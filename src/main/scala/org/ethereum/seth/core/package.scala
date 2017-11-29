@@ -1,5 +1,6 @@
 package org.ethereum.seth
 
+import cats.Show
 import org.ethereum.seth.core.transaction._
 import org.ethereum.seth.core.transaction.validation._
 import org.ethereum.seth.core.gas._
@@ -11,7 +12,7 @@ package object core {
     def hexString: String = b.map("0x%02x".format(_)).mkString("[", ",", "]")
   }
 
-  //  def nextState(currentState: State, transactions: Streaming[Transactions]) = {
+   //  def nextState(currentState: State, transactions: Streaming[Transactions]) = {
 //
 //  }
 //  def transitionOf(state: State, tx: Transaction): State = {

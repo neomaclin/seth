@@ -17,16 +17,25 @@ class TrieSpec extends FlatSpec {
     (Array(10, 7, 1, 1, 3, 5, 5).map(_.toByte), 45.0),
     (Array(10, 7, 7, 13, 3, 9, 7).map(_.toByte), 0.12)
   )
+
   "A leaf node " should " return if k-v is added to a Empty Node" in {
     val single: Node[String] = put(Array(6, 4, 6, 15).map(_.toByte), "verb", EmptyNode)
     assert(single.isInstanceOf[Leaf[String]])
 
   }
-  "new branch node " should "created if current node is branch node " in {
-    val text = putAll(EmptyNode, testList)
-    assert(text.isInstanceOf[Extension[String]])
+  "A trie " should " be generic contain of any value type " in {
+    var stringTrie = Trie[String]()
+    assert(stringTrie.putAll(testList).root.isInstanceOf[Extension[String]])
 
-    val double = putAll(EmptyNode, testList2)
-    assert(double.isInstanceOf[Extension[Double]])
+    val doubleTrie = Trie[Double]()
+    assert(doubleTrie.putAll(testList2).root.isInstanceOf[Extension[Double]])
   }
+
+//  "A trie " should " be generic contain of any value type " in {
+//    var stringTrie = Trie[String]()
+//    assert(stringTrie.putAll(testList).root.isInstanceOf[Extension[String]])
+//
+//    val doubleTrie = Trie[Double]()
+//    assert(doubleTrie.putAll(testList2).root.isInstanceOf[Extension[Double]])
+//  }
 }
